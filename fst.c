@@ -2,6 +2,6 @@
 
 int main () 
 {
-  printf ("Welcome to linuxDD \n");
+  printf ("Welcome to linuxDD\n");
   return 0;
 }
