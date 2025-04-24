@@ -1,0 +1,50 @@
+#include "header.h"
+void sem_wait(int semid) {
+    struct sembuf sbuf = {0, -1, 0};
+    semop(semid, &sbuf, 1);
+}
+
+void sem_signal(int semid) {
+    struct sembuf sbuf = {0, 1, 0};
+    semop(semid, &sbuf, 1);
+}
+
+int main() {
+    key_t key = ftok("log.txt", 65);
+    int shmid = shmget(key, 1024, IPC_CREAT | 0666);
+    if (shmid == -1) {
+        perror("Error in shmget");
+        exit(0);
+    }
+    int semid = semget(key, 1, IPC_CREAT | 0666);
+    if (semid == -1) {
+        perror("Error in semget");
+        exit(0);
+    }
+
+  
+    union semun {
+        int val;
+    } sem_val;
+    sem_val.val = 1;  
+    semctl(semid, 0, SETVAL, sem_val); 
+
+    
+    char *data = (char *)shmat(shmid, NULL, 0);
+    if (data == (char *)-1) {
+        perror("Error in shmat");
+        exit(0);
+    }
+
+    printf("Enter a text: ");
+    fgets(data, 1024, stdin);
+    data[strcspn(data, "\n")] = '\0';
+    message1(data);
+ 
+    sem_signal(semid); 
+
+    shmdt(data);  
+
+    return 0;
+}
+
