@@ -1,11 +1,11 @@
-all: writer reader 
 
-writer: writer.c file.c
-	gcc -o writer writer.c file.c
-
-reader: reader.c file.c
-	gcc -o reader reader.c file.c
-
+all: write read
+ 
+write: write.c
+	gcc write.c -o write
+ 
+read: read.c
+	gcc read.c -o read
+ 
 clean:
-	rm -f writer reader shem.txt
-
+	rm -f write read shmem.txt
