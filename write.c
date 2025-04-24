@@ -4,6 +4,7 @@ int val;
 };
 int main()
 {
+int shmid=shmget(SHM_KEY,1024,0666 | IPC_CREAT);
 SharedData *data=(SharedData *)shmat(shmid,NULL,0); 
     int semid = semget(SEM_KEY, 1, 0666 | IPC_CREAT);
  
