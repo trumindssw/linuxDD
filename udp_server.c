@@ -13,11 +13,10 @@ int main()
 	/*Configure settings in address struct*/
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_port = htons(PORT_NUM);
-	serverAddr.sin_addr.s_addr = inet_addr("0.0.0.0");
+	serverAddr.sin_addr.s_addr = inet_addr("0.0.0.0");    //able to receive data from all available interfaces
 
-//	memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
 
-	/*Bind socket with address struct*/
+	/*Bind socket with address struct,bind() tells the operating system: “I want this socket to be associated with this IP address and this port number.”*/
 	bind(udpSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
 
 	/*Initialize size variable to be used later on*/
@@ -25,8 +24,11 @@ int main()
 
 	while(1)
 	{
+		//data receive from client
 		recvfrom(udpSocket,buffer,100,0,(struct sockaddr *)&clientAddr, &addr_size);
+
                 printf("the data from client is: %s\n",buffer);
+
 		if(strcmp(buffer,"quit")==0)
 		{
 			break;

@@ -5,7 +5,7 @@ int main(int argc,char *argv[]) {
     if (shm_id == -1) { perror("shmget"); exit(1); }
 
     char *data = (char *)shmat(shm_id, NULL, 0);
-    if (data == (void *)-1) { perror("shmat"); exit(1); }
+    if (data == (char *)-1) { perror("shmat"); exit(1); }
 
     int sem_id = semget(SEM_KEY, 1, 0666);
     if (sem_id == -1) { perror("semget"); exit(1); 
@@ -22,14 +22,13 @@ int main(int argc,char *argv[]) {
 	}
 
 	/*Create UDP socket*/
-	clientSocket = socket(PF_INET, SOCK_DGRAM, 0);
+	clientSocket = socket(PF_INET, SOCK_DGRAM, 0);        
 
 	/*Configure settings in address struct*/
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons((PORT_NUM));
-	serverAddr.sin_addr.s_addr = inet_addr(argv[1]);
+	serverAddr.sin_family = AF_INET;                   //IPV4 family
+	serverAddr.sin_port = htons((PORT_NUM));           
+	serverAddr.sin_addr.s_addr = inet_addr(argv[1]);   //converting the address into 32 bit network address
 	
-//	memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);  
 
 	/*Initialize size variable to be used later on*/
 	addr_size = sizeof (serverAddr);
@@ -39,15 +38,18 @@ int main(int argc,char *argv[]) {
     while (1) 
     {
         sem_wait(sem_id);  // Wait for writer to write
-			   //
+			   
         printf("Reader: Read -> %s\n", data);
 	strcpy(buffer,data);
 	nBytes = strlen(buffer)+1;
         
+	//writing the read data into the shmem.txt file
         write_into_file(fp,buffer);
-
+        
+	//sending the received data to server
 	sendto(clientSocket,buffer,nBytes,0,(struct sockaddr *)&serverAddr,addr_size);
          
+	//checking if to quit the communication
 	if (strcmp(data, "quit") == 0)
         {
             printf("Reader: Received 'quit', cleaning up.\n");
@@ -56,7 +58,7 @@ int main(int argc,char *argv[]) {
 
     }
 
-    shmdt(data);
+    shmdt(data);                     //detach the shared memory
     shmctl(shm_id, IPC_RMID, NULL);  // Delete shared memory
     semctl(sem_id, 0, IPC_RMID);     // Delete semaphore
     fclose(fp);

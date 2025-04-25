@@ -120,3 +120,17 @@ _________________________________________
 
 	    -->  shmctl(id,IPC_STAT,&buff);
 
+semaphores:
+void sem_signal(int sem_id) {
+    struct sembuf op = {0, 1, 0};  // V operation
+    semop(sem_id, &op, 1);  //1 tells the kernel “There’s exactly one operation to perform, in 3rd argument we given
+}
+
+   🔧 sem_op Meaning:
+
+sem_op Value	Operation	Meaning
+-1	P (wait)	Tries to subtract 1. If not possible, blocks.
++1	V (signal)	Adds 1 to the semaphore value.
+-N	P N times	Tries to subtract N. Blocks if not enough.
++N	V N times	Adds N. Wakes up to N waiting processes.
+0	Wait for zero	Process blocks until semaphore value is 0.

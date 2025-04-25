@@ -18,22 +18,10 @@ writer: writer.c $(SHARED_OBJS)
 reader: reader.c $(SHARED_OBJS)
 	$(CC) $(CFLAGS) reader.c $(SHARED_OBJS) -o reader
 
+
 # UDP server does not use the shared object
 udp_server: udp_server.c
 	$(CC) $(CFLAGS) udp_server.c -o udp_server
-
-# Run targets
-run_writer: writer
-	./writer
-
-run_reader: reader
-ifndef ARG
-	$(error Please provide ARG. Usage: make run_reader ARG="your_argument")
-endif
-	./reader $(ARG)
-
-run_udp: udp_server
-	./udp_server
 
 # Clean up all binaries and object files
 clean:
