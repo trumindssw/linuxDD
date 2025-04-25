@@ -2,6 +2,7 @@
 
 int main()
 {
+    //shared memory creation
     
     int shmid = shmget(SHM_key, SIZE, 0666);
     if (shmid == -1)
@@ -9,12 +10,14 @@ int main()
         perror("shmget");
         exit(1);
     }
+    //attach shared memory
     struct Data *data = (struct Data *)shmat(shmid, NULL, 0);
     if (data == (void *)-1)
     {
         perror("shmat");
         exit(1);
     }
+    //semaphore creation
     int semid = semget(SEM_key, 1, 0666);
     if (semid == -1)
     {
@@ -24,6 +27,7 @@ int main()
     lock_semaphore(semid);
     printf("Message received: %s\n", data->msg);
     message1(data->msg);
+    //detach shared memory
     shmdt(data);
     return 0;
 }
