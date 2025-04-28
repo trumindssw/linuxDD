@@ -1,35 +1,61 @@
-// Writer.c Acts a Client ...
+#include "header.h"
 
-
-#include "ipc_shared_memory.h"
-
-int main()
-{
-
-
-    key_t shmkey = ftok("shmfile", 65);
-    int shmid = create_shared_memory(shmkey);
-    char *shm_ptr = attach_shared_memory(shmid);
-    int semid = create_semaphore(SEM_KEY);
-
-    char input[SHM_SIZE];
-    printf("Enter a message to write to shared memory: ");
-    fgets(input, sizeof(input), stdin);    // Read user input
-    input[strcspn(input, "\n")] = '\0';    // Remove newline if any
-
-    sem_wait(semid);
-    strcpy(shm_ptr, input);                // Write input to shared memory
-    sem_signal(semid);
-
-    printf("Writer wrote: %s\n", shm_ptr);
-
-    read_from_shared_memory_and_send(semid, shm_ptr);
-
-    shmdt(shm_ptr);
-    return 0;
-
-
-
+void sem_wait(int semid) {
+    struct sembuf sb = {0, -1, 0};
+    semop(semid, &sb, 1);
 }
 
+void sem_signal(int semid) {
+    struct sembuf sb = {0, 1, 0};
+    semop(semid, &sb, 1);
+}
+
+int main() {
+    key_t key = ftok("log.txt", 65);
+    int shmid = shmget(key, 1024, IPC_CREAT | 0666);
+    int semid = semget(key, 1, IPC_CREAT | 0666);
+
+    if (shmid == -1) {
+        perror("Error in shmget");
+        exit(0);
+    }
+    if (semid == -1) {
+        perror("Error in semget");
+        exit(0);
+    }
+
+    union semun {
+        int val;
+    } sem_val;
+    sem_val.val = 1;
+    semctl(semid, 0, SETVAL, sem_val);
+
+    struct shared_data *data = (struct shared_data *)shmat(shmid, NULL, 0);
+    if (data == (void *)-1) {
+        perror("Error in shmat");
+        exit(0);
+    }
+
+    while(1) {
+        printf("Enter a text: ");
+        fgets(data->text, sizeof(data->text), stdin);
+        data->text[strcspn(data->text, "\n")] = '\0'; // Remove newline character
+
+        message1(data->text);
+
+        sem_wait(semid);
+
+        data->flag = 1;  // Mark data as ready
+
+        sem_signal(semid);
+
+        if(strcmp(data->text, "exit") == 0) {
+            break;
+        }
+    }
+
+    shmdt(data);
+
+    return 0;
+}
 
