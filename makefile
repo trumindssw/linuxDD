@@ -1,11 +1,7 @@
-all: writer reader 
-
-writer: writer.c file.c
-	gcc -o writer writer.c file.c
-
-reader: reader.c file.c
-	gcc -o reader reader.c file.c
-
+all:sender reciever
+sender:sender.c file.c
+	gcc -o sender sender.c file.c
+reciever:reciever.c file.c
+	gcc -o reciever reciever.c file.c
 clean:
-	rm -f writer reader shem.txt
-
+	rm -f sender reciever shm.txt 
