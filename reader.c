@@ -1,23 +1,55 @@
+#include "header.h"
 
-#include "ipc_shared_memory.h"
+void sem_wait(int semid) {
+    struct sembuf sb = {0, -1, 0};
+    semop(semid, &sb, 1);
+}
+
+void sem_signal(int semid) {
+    struct sembuf sb = {0, 1, 0};
+    semop(semid, &sb, 1);
+}
 
 int main()
 {
+    key_t key = ftok("log.txt",65);
+    int shmid = shmget(key,1024,0666);
+    int semid = semget(key,1,0666);
 
-    key_t shmkey = ftok("shmfile", 65);           // Create a unique key for shared memory
-    int shmid = create_shared_memory(shmkey);      // Create shared memory segment
-    char *shm_ptr = attach_shared_memory(shmid);   // Attach shared memory to process
+    if(shmid==-1) {
+        perror("Shmget");
+        exit(0);
+    }
+    if(semid==-1) {
+        perror("Semget");
+        exit(0);
+    }
 
-    // Create semaphore
-    int semid = create_semaphore(SEM_KEY);
+    struct shared_data *data = (struct shared_data *)shmat(shmid, NULL, 0);
+    if(data == (void *)-1) {
+        perror("Shmat");
+        exit(0);
+    }
 
-    // Wait and read data from shared memory
-    sem_wait(semid);  // Wait for semaphore (synchronize)
-    printf("Reader read from shared memory: %s\n", shm_ptr);  // Read from shared memory
-    sem_signal(semid);  // Release semaphore
+    while(1) {
+        sem_wait(semid);
 
-    shmdt(shm_ptr);  // Detach shared memory
+        if(data->flag == 1) {
+            printf("Reader read: %s\n", data->text);
+            message1(data->text);
+            if(strcmp(data->text, "exit") == 0)
+                break;
+
+            data->flag = 0;
+        }
+
+        sem_signal(semid);
+    }
+
+    shmdt(data);
+    shmctl(shmid, IPC_RMID, NULL);
+    semctl(semid, 0, IPC_RMID);
+
     return 0;
-    
 }
 
