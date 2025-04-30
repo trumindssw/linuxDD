@@ -1,0 +1,68 @@
+execve("./server", ["./server"], 0x7ffffa7495b0 /* 47 vars */) = 0
+brk(NULL)                               = 0x55d900110000
+arch_prctl(0x3001 /* ARCH_??? */, 0x7ffc65f76920) = -1 EINVAL (Invalid argument)
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f29e2f38000
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+newfstatat(3, "", {st_mode=S_IFREG|0644, st_size=99931, ...}, AT_EMPTY_PATH) = 0
+mmap(NULL, 99931, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f29e2f1f000
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0P\237\2\0\0\0\0\0"..., 832) = 832
+pread64(3, "\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0"..., 784, 64) = 784
+pread64(3, "\4\0\0\0 \0\0\0\5\0\0\0GNU\0\2\0\0\300\4\0\0\0\3\0\0\0\0\0\0\0"..., 48, 848) = 48
+pread64(3, "\4\0\0\0\24\0\0\0\3\0\0\0GNU\0\315A\vq\17\17\tLh2\355\331Y1\0m"..., 68, 896) = 68
+newfstatat(3, "", {st_mode=S_IFREG|0755, st_size=2220400, ...}, AT_EMPTY_PATH) = 0
+pread64(3, "\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0"..., 784, 64) = 784
+mmap(NULL, 2264656, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f29e2c00000
+mprotect(0x7f29e2c28000, 2023424, PROT_NONE) = 0
+mmap(0x7f29e2c28000, 1658880, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x28000) = 0x7f29e2c28000
+mmap(0x7f29e2dbd000, 360448, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1bd000) = 0x7f29e2dbd000
+mmap(0x7f29e2e16000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x215000) = 0x7f29e2e16000
+mmap(0x7f29e2e1c000, 52816, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f29e2e1c000
+close(3)                                = 0
+mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f29e2f1c000
+arch_prctl(ARCH_SET_FS, 0x7f29e2f1c740) = 0
+set_tid_address(0x7f29e2f1ca10)         = 5300
+set_robust_list(0x7f29e2f1ca20, 24)     = 0
+rseq(0x7f29e2f1d0e0, 0x20, 0, 0x53053053) = 0
+mprotect(0x7f29e2e16000, 16384, PROT_READ) = 0
+mprotect(0x55d8fee53000, 4096, PROT_READ) = 0
+mprotect(0x7f29e2f72000, 8192, PROT_READ) = 0
+prlimit64(0, RLIMIT_STACK, NULL, {rlim_cur=8192*1024, rlim_max=RLIM64_INFINITY}) = 0
+munmap(0x7f29e2f1f000, 99931)           = 0
+socket(AF_INET, SOCK_STREAM, IPPROTO_IP) = 3
+bind(3, {sa_family=AF_INET, sin_port=htons(8080), sin_addr=inet_addr("0.0.0.0")}, 16) = 0
+listen(3, 3)                            = 0
+newfstatat(1, "", {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0), ...}, AT_EMPTY_PATH) = 0
+getrandom("\x68\x93\x5f\x5f\x83\xbf\x2f\xc5", 8, GRND_NONBLOCK) = 8
+brk(NULL)                               = 0x55d900110000
+brk(0x55d900131000)                     = 0x55d900131000
+write(1, "Server listening on port 8080\n", 30) = 30
+accept(3, {sa_family=AF_INET, sin_port=htons(36724), sin_addr=inet_addr("127.0.0.1")}, [16]) = 4
+write(1, "Connection accepted.\n", 21)  = 21
+pselect6(5, [4], NULL, NULL, {tv_sec=5, tv_nsec=0}, NULL) = 1 (in [4], left {tv_sec=1, tv_nsec=681365890})
+recvfrom(4, "time", 1024, 0, NULL, NULL) = 4
+write(1, "Client: time\n", 13)          = 13
+openat(AT_FDCWD, "/etc/localtime", O_RDONLY|O_CLOEXEC) = 5
+newfstatat(5, "", {st_mode=S_IFREG|0644, st_size=285, ...}, AT_EMPTY_PATH) = 0
+newfstatat(5, "", {st_mode=S_IFREG|0644, st_size=285, ...}, AT_EMPTY_PATH) = 0
+read(5, "TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 4096) = 285
+lseek(5, -169, SEEK_CUR)                = 116
+read(5, "TZif2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 4096) = 169
+close(5)                                = 0
+sendto(4, "10:51:34", 8, 0, NULL, 0)    = 8
+pselect6(5, [4], NULL, NULL, {tv_sec=5, tv_nsec=0}, NULL) = 0 (Timeout)
+pselect6(5, [4], NULL, NULL, {tv_sec=5, tv_nsec=0}, NULL) = 1 (in [4], left {tv_sec=1, tv_nsec=54072234})
+recvfrom(4, "date", 1024, 0, NULL, NULL) = 4
+write(1, "Client: date\n", 13)          = 13
+newfstatat(AT_FDCWD, "/etc/localtime", {st_mode=S_IFREG|0644, st_size=285, ...}, 0) = 0
+sendto(4, "2025-04-30", 10, 0, NULL, 0) = 10
+pselect6(5, [4], NULL, NULL, {tv_sec=5, tv_nsec=0}, NULL) = 0 (Timeout)
+pselect6(5, [4], NULL, NULL, {tv_sec=5, tv_nsec=0}, NULL) = 1 (in [4], left {tv_sec=2, tv_nsec=964385389})
+recvfrom(4, "", 1024, 0, NULL, NULL)    = 0
+write(1, "Client disconnected. Shutting do"..., 43) = 43
+close(4)                                = 0
+close(3)                                = 0
+exit_group(0)                           = ?
++++ exited with 0 +++
