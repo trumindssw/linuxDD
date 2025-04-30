@@ -1,49 +1,24 @@
 
-# Compiler and flags
-CC = gcc
-CFLAGS = -Wall -g
 
-# Source files
-SRCS = writer.c reader.c udp_server.c ipc_shared_memory.c
+# Makefile
 
-# Object files
-OBJS = writer.o reader.o udp_server.o ipc_shared_memory.o
+CC = gcc             # Compiler
+CFLAGS = -Wall -g    # Compiler flags (Wall: warnings, g: debug info)
 
-# Header file
-HEADER = ipc_shared_memory.h
+all: server client   # Default target: build both
 
-# Executables
-TARGETS = writer reader udp_server
+server: server.o
+	$(CC) $(CFLAGS) -o server server.o
 
-# Default target
-all: $(TARGETS)
+client: client.o
+	$(CC) $(CFLAGS) -o client client.o
 
-# Writer binary
-writer: writer.o ipc_shared_memory.o
-	$(CC) $(CFLAGS) writer.o ipc_shared_memory.o -o writer -lrt
+server.o: server.c
+	$(CC) $(CFLAGS) -c server.c
 
-# Reader binary
-reader: reader.o ipc_shared_memory.o
-	$(CC) $(CFLAGS) reader.o ipc_shared_memory.o -o reader -lrt
+client.o: client.c
+	$(CC) $(CFLAGS) -c client.c
 
-# UDP Server binary
-udp_server: udp_server.o
-	$(CC) $(CFLAGS) udp_server.o -o udp_server
-
-# Object file rules
-writer.o: writer.c $(HEADER)
-	$(CC) $(CFLAGS) -c writer.c
-
-reader.o: reader.c $(HEADER)
-	$(CC) $(CFLAGS) -c reader.c
-
-udp_server.o: udp_server.c
-	$(CC) $(CFLAGS) -c udp_server.c
-
-ipc_shared_memory.o: ipc_shared_memory.c $(HEADER)
-	$(CC) $(CFLAGS) -c ipc_shared_memory.c
-
-# Clean target
 clean:
-	rm -f *.o $(TARGETS)
+	rm -f *.o server client
 
