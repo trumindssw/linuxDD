@@ -1,0 +1,14 @@
+CC = gcc
+CFLAGS = -Wall -O2
+
+all: sender receiver
+
+sender: sender.c ipc.h
+	$(CC) $(CFLAGS) -o sender sender.c
+
+receiver: receiver.c ipc.h
+	$(CC) $(CFLAGS) -o receiver receiver.c
+
+clean:
+	rm -f sender receiver
+
