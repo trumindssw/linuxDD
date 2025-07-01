@@ -1,23 +1,52 @@
+#include "ipc_common.h"
 
-#include "ipc_shared_memory.h"
+int main() {
+    int shmid = shmget(SHM_KEY, SHM_SIZE, 0666);
 
-int main()
-{
+    int semid = semget(SEM_KEY, 1, IPC_CREAT | 0666);
 
-    key_t shmkey = ftok("shmfile", 65);           // Create a unique key for shared memory
-    int shmid = create_shared_memory(shmkey);      // Create shared memory segment
-    char *shm_ptr = attach_shared_memory(shmid);   // Attach shared memory to process
+    if (shmid == -1) {
+        perror("shmget failed");
+        exit(1);
+    }
 
-    // Create semaphore
-    int semid = create_semaphore(SEM_KEY);
+    char *shm = (char *)shmat(shmid, NULL, 0);
 
-    // Wait and read data from shared memory
-    sem_wait(semid);  // Wait for semaphore (synchronize)
-    printf("Reader read from shared memory: %s\n", shm_ptr);  // Read from shared memory
-    sem_signal(semid);  // Release semaphore
+    if (shm == (char *)-1) {
+        perror("shmat failed");
+        exit(1);
+    }
+    pid_t pid = getpid();
 
-    shmdt(shm_ptr);  // Detach shared memory
+    //what is pid_t a datatype?
+
+    int semval_before = semctl(semid, 0, GETVAL);
+    printf("Semaphore value before locking: %d\n", semval_before);
+
+
+    sem_wait(semid);
+
+
+    int semval_during = semctl(semid, 0, GETVAL);
+    printf("Semaphore value during process: %d\n", semval_during);
+
+
+    printf("Reader: Read from shared memory: %s\n", shm);
+
+    // Read from shmem.txt
+
+    FILE *file = fopen("shmem.txt", "r");
+    fprintf(file, "Process ID: %d Message: %s\n", pid, shm);
+    fclose(file);
+
+    sem_signal(semid);  // unlock
+
+
+    int semval_after = semctl(semid, 0, GETVAL);
+    printf("Semaphore value after unlock: %d\n", semval_after);
+
+
+    shmdt(shm);  // Detach
+    // shmctl(shmid, IPC_RMID, NULL);
     return 0;
-    
 }
-
