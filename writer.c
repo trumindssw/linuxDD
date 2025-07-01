@@ -56,10 +56,11 @@ int main() {
     if (current_len > 0) {
         strcat(shm, "\n"); // Add delimiter if not first message
     }
-    strcat(shm, input);    printf("Writer: Message written to shared memory.\n");
+    strcat(shm, input);    
+    printf("Writer: Message written to shared memory.\n");
 
     FILE *file = fopen("shmem.txt", "a");
-    fprintf(file, "Process ID: %d Message: %s\n", pid, shm);
+    fprintf(file, "Process ID: %d Message: %s\n", pid, input);
     fclose(file);
 
 

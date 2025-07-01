@@ -1,0 +1,6 @@
+Process ID: 21493 Message: Hello
+Process ID: 21494 Total data in shared memory: Hello
+Process ID: 21499 Total data in shared memory: Hello
+Process ID: 21501 Message: Iam Imdad
+Process ID: 21502 Total data in shared memory: Hello
+Iam Imdad

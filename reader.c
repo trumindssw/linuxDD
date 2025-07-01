@@ -35,8 +35,8 @@ int main() {
 
     // Read from shmem.txt
 
-    FILE *file = fopen("shmem.txt", "r");
-    fprintf(file, "Process ID: %d Message: %s\n", pid, shm);
+    FILE *file = fopen("shmem.txt", "a");
+    fprintf(file, "Process ID: %d Total data in shared memory: %s\n", pid, shm);
     fclose(file);
 
     sem_signal(semid);  // unlock
