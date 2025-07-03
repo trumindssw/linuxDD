@@ -21,9 +21,10 @@ int main() {
 
     printf("Enter message: ");
     fgets(input, SHM_SIZE, stdin);
-    strcpy((char *)shared_memory, input);
-
+    
     sem_wait(sem);
+
+    strcpy((char *)shared_memory, input);
 
     FILE *fp = fopen(LOG_FILE, "a");
     if (fp) {
