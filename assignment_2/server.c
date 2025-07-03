@@ -10,15 +10,20 @@
 
 #define PORT 8080           
 #define BUFFER_SIZE 1024
-#define IDLE_TIMEOUT 180
+#define IDLE_WARNING 180  // 3 min
+#define IDLE_SHUTDOWN 300 // 5 min (3 + 2)
 
 time_t last_activity;       
 
-void handle_client(int client_sock) {
+// Function to handle communication with the client
+void handle_client(int client_sock, int* warned) {
     char buffer[BUFFER_SIZE]; 
     int read_size;
     last_activity = time(NULL);  
-    while ((read_size = recv(client_sock, buffer, sizeof(buffer)-1, 0)) > 0) {
+    *warned = 0;
+
+    // Loop to receive data from client
+    if ((read_size = recv(client_sock, buffer, sizeof(buffer)-1, 0)) > 0) {
         buffer[read_size] = '\0';   
         last_activity = time(NULL);  
         if (strcasecmp(buffer, "time\n") == 0) {
@@ -41,14 +46,19 @@ void handle_client(int client_sock) {
     }
 }
 
+// Handle Ctrl+C signal to exit gracefully
 void graceful_exit(int signum) {
     printf("\nServer exiting gracefully.\n");
     exit(0);
 }
 
+// Entry point
 int main() {
     int server_fd, client_fd;
     struct sockaddr_in address;  
+    int warned = 0;
+    // Struct to hold address (IP + port)
+
     int opt = 1;                  
     socklen_t addrlen = sizeof(address);
 
@@ -57,6 +67,7 @@ int main() {
 
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
+    // Fill out the address struct
     address.sin_family = AF_INET;          // IPv4
     address.sin_addr.s_addr = INADDR_ANY;  
     address.sin_port = htons(PORT);        
@@ -68,12 +79,13 @@ int main() {
 
     printf("Server file descriptor: %d\n", server_fd);
 
-   
+    // Accept a client connection
     client_fd = accept(server_fd, (struct sockaddr *)&address, &addrlen);
     printf("Client file descriptor: %d\n", client_fd);
 
 
     last_activity = time(NULL);  
+    warned = 0;
     fd_set readfds;
     struct timeval timeout;
 
@@ -81,26 +93,27 @@ while (1) {
     FD_ZERO(&readfds);
     FD_SET(client_fd, &readfds);
 
-    timeout.tv_sec = 2; // check every 2 sec
+    timeout.tv_sec = 1; 
     timeout.tv_usec = 0;
 
     int activity = select(client_fd + 1, &readfds, NULL, NULL, &timeout);
 
     if (activity < 0) perror("select error");
     else if (activity == 0) {
-        // timeout: no data
-        if (difftime(time(NULL), last_activity) > IDLE_TIMEOUT) {
-            printf("Inactivity timeout.\n");
-            sleep(120);
-            printf("Server shutting down due to inactivity.\n");
-            break;
-        }
-    } else {
-        // data available
-        handle_client(client_fd);
-    }
+        double idle = difftime(time(NULL), last_activity);
+
+    if (idle >= IDLE_SHUTDOWN) {
+    printf("Server shutting down due to inactivity.\n");
+    break;
+} else if (idle >= IDLE_WARNING && !warned) {
+    printf("No message from client for 3 min, will die in 2 min\n");
+    warned = 1;
 }
 
+    } else {
+        handle_client(client_fd, &warned);
+    }
+}
 
     // Cleanup
     close(client_fd);
