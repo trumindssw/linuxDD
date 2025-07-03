@@ -32,19 +32,24 @@ int main() {
     printf("Semaphore value during process: %d\n", semval_during);
     // Get user input
     char input[MAX_INPUT];
+    size_t current_len = strlen(shm);
+
+    printf("String length of shm currently: %ld\n", current_len);
     printf("Enter a message to write to shared memory: ");
-    if (fgets(input, MAX_INPUT, stdin) == NULL) {
-        perror("fgets failed");
-        sem_signal(semid);
-        shmdt(shm);
-        exit(1);
-    }
+    fgets(input, MAX_INPUT, stdin);
+    // if (fgets(input, MAX_INPUT, stdin) == NULL) {
+    //     perror("fgets failed");
+    //     sem_signal(semid);
+    //     shmdt(shm);
+    //     exit(1);
+    // }
 
     // Remove trailing newline from fgets
-    input[strcspn(input, "\n")] = '\0';
 
-    size_t current_len = strlen(shm);
+    input[strcspn(input, "\n")] = '\0';
+    // gives the index of the first \n found in the input 
     size_t input_len = strlen(input);
+
     if (current_len + input_len + 2 > SHM_SIZE) { // +2 for delimiter and null terminator
         fprintf(stderr, "Shared memory full (max %d bytes)\n", SHM_SIZE - 1);
         sem_signal(semid);
@@ -56,7 +61,8 @@ int main() {
     if (current_len > 0) {
         strcat(shm, "\n"); // Add delimiter if not first message
     }
-    strcat(shm, input);    
+    strcat(shm, input);
+    printf("String length of shm after the new input: %ld\n", strlen(shm));
     printf("Writer: Message written to shared memory.\n");
 
     FILE *file = fopen("shmem.txt", "a");

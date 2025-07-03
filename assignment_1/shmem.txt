@@ -1,0 +1,6 @@
+Process ID: 32212 Message: ahaa
+Process ID: 32214 Total data in shared memory: imdad here
+Imdad again
+hoii
+Hello guys
+ahaa
