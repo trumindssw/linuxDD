@@ -11,9 +11,12 @@
 #include <semaphore.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <sys/mman.h>
+
 
 #define SHM_KEY 0x12348
-#define SEM_NAME "/my_sem"
+#define SEM_NAME "/my_phore"
+#define SHM_NAME "/sharedMemory"
 #define SHM_SIZE 1024
 #define SHARED_FILE "shmem.txt"
 
