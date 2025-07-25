@@ -1,0 +1,1 @@
+savedcmd_/home/prasanthi/chardevice/char.ko := ld -r -m elf_x86_64 -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T scripts/module.lds -o /home/prasanthi/chardevice/char.ko /home/prasanthi/chardevice/char.o /home/prasanthi/chardevice/char.mod.o
