@@ -2,11 +2,11 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h> // for creating proc file 
-#include <linux/uaccess.h>  // for copy_to_user
+#include <linux/uaccess.h>  // for copy_to_user and copy_from_user
 
 #define PROC_NAME "myinfo"
 
-// This is the read function called when the user does cat /proc/info
+// This is the read function called on cat /proc/info
 static ssize_t myinfo_read(struct file *file, char __user *buf,
                            size_t count, loff_t *ppos)
 {
@@ -14,7 +14,7 @@ static ssize_t myinfo_read(struct file *file, char __user *buf,
     int len = sizeof(message);
 
     // Only allow one read
-    if (*ppos > 0 || count < len)
+    if (*ppos > 0)
         return 0;
 
     if (copy_to_user(buf, message, len))

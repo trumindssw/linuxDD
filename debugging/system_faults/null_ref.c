@@ -8,8 +8,9 @@ static int __init fault_init(void)
 {
     printk(KERN_INFO "Triggering null pointer dereference...\n");
 
-    *ptr = 42; // Null dereferencing 
-    // we will see oops message
+    *ptr = 42; 
+    // Null dereferencing 
+    // we should see oops message
 
     return 0;
 }

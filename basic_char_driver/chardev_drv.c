@@ -24,7 +24,8 @@ static dev_t dev_num;
 static struct cdev my_cdev;
 static struct class *my_class;
 static char *kernel_buffer; 
-// Dynamically allocated buffer in kernel space
+static size_t current_len;
+static size_t len;
 
 
 
@@ -43,7 +44,7 @@ static int dev_release(struct inode *inode, struct file *file) {
 // Read handler
 static ssize_t dev_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos) {
     // Get current data length
-    size_t len = strlen(kernel_buffer);
+    len = strlen(kernel_buffer);
 
     // If offset is beyond data, return 0 (EOF)
     if (*ppos >= len)
@@ -57,26 +58,28 @@ static ssize_t dev_read(struct file *file, char __user *user_buf, size_t count, 
     }
 
     *ppos += len; // Moving the offset
-    printk(KERN_INFO "mychardev: sent %zu bytes to user\n", len);
+    printk(KERN_INFO "mychardev: sent %zu bytes to user space\n", len);
     return len;
 }
 
 // Write handler
 static ssize_t dev_write(struct file *file, const char __user *user_buf, size_t count, loff_t *ppos) {
-    // Ensure data does not exceed buffer
-    if (count > BUFFER_SIZE - 1)
+    
+    current_len = strlen(kernel_buffer);
+
+    // Ensure buffer has space to append
+    if (current_len + count >= BUFFER_SIZE) {
+        printk(KERN_ERR "mychardev: String is too long\n");
         return -EINVAL;
-
-    memset(kernel_buffer, 0, BUFFER_SIZE); // Clear buffer
-
+    }
     // Copy data from user to kernel space
-    if (copy_from_user(kernel_buffer, user_buf, count)) {
+    if (copy_from_user(kernel_buffer + current_len, user_buf, count)) {
         printk(KERN_ERR "mychardev: copy_from_user failed\n");
         return -EFAULT;
     }
 
-    kernel_buffer[count] = '\0'; // Null terminate string
-    printk(KERN_INFO "mychardev: received from user: %s\n", kernel_buffer);
+    kernel_buffer[current_len + count] = '\0'; // Null terminate string
+    printk(KERN_INFO "mychardev: appended: %s\n", kernel_buffer);
     return count;
 }
 
@@ -111,6 +114,7 @@ static int __init mychardev_init(void) {
     cdev_init(&my_cdev, &fops);
     my_cdev.owner = THIS_MODULE;
     ret = cdev_add(&my_cdev, dev_num, 1);
+
     if (ret < 0) {
         kfree(kernel_buffer);
         unregister_chrdev_region(dev_num, 1);
@@ -155,7 +159,6 @@ static void __exit mychardev_exit(void) {
 module_init(mychardev_init);
 module_exit(mychardev_exit);
 
-// Module metadata
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Imdad");
 MODULE_DESCRIPTION("Char device driver with automatic /dev entry");
