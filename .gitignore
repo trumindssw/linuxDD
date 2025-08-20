@@ -4,9 +4,19 @@
 # Compiled Object files
 *.ko
 *.o
+*.o.cmd
 *.obj
 *.a
 *.lib
-
-
+*.exe
+*.out
 *.so
+
+# KErnel Files to be ignored
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
