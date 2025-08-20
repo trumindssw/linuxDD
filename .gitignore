@@ -1,0 +1,12 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.ko
+*.o
+*.obj
+*.a
+*.lib
+
+
+*.so
