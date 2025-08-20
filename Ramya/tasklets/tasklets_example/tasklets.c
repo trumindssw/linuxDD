@@ -5,7 +5,7 @@
 #include <linux/init.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Valli");
+MODULE_AUTHOR("Ramya");
 MODULE_DESCRIPTION("Simple Tasklet Example (Kernel 6.x compatible)");
 
 // We want to pass some data (e.g., 1234) to the tasklet
