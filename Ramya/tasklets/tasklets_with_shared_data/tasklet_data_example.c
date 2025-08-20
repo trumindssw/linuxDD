@@ -5,7 +5,7 @@
 #include <linux/init.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Valli");
+MODULE_AUTHOR("Ramya");
 MODULE_DESCRIPTION("Tasklet with data example");
 
 static int shared_counter = 0;
