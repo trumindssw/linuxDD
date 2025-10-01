@@ -1,0 +1,25 @@
+radeen@radeen-HP-348-G7:~/work_station/qualcomm/rb3g2/my_driver$ sudo insmod helloworld.ko
+[sudo] password for radeen: 
+radeen@radeen-HP-348-G7:~/work_station/qualcomm/rb3g2/my_driver$ dmesg | tail -n 20
+dmesg: read kernel buffer failed: Operation not permitted
+radeen@radeen-HP-348-G7:~/work_station/qualcomm/rb3g2/my_driver$ sudo dmesg | tail -n 20
+[ 1258.374096] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1258.561991] atkbd serio0: Unknown key pressed (translated set 2, code 0xab on isa0060/serio0).
+[ 1258.561999] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1258.569060] atkbd serio0: Unknown key released (translated set 2, code 0xab on isa0060/serio0).
+[ 1258.569066] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1711.218057] atkbd serio0: Unknown key pressed (translated set 2, code 0xab on isa0060/serio0).
+[ 1711.218080] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1711.227327] atkbd serio0: Unknown key released (translated set 2, code 0xab on isa0060/serio0).
+[ 1711.227346] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1711.628262] atkbd serio0: Unknown key pressed (translated set 2, code 0xab on isa0060/serio0).
+[ 1711.628280] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1711.635415] atkbd serio0: Unknown key released (translated set 2, code 0xab on isa0060/serio0).
+[ 1711.635437] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1711.940172] atkbd serio0: Unknown key pressed (translated set 2, code 0xab on isa0060/serio0).
+[ 1711.940195] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1711.951231] atkbd serio0: Unknown key released (translated set 2, code 0xab on isa0060/serio0).
+[ 1711.951251] atkbd serio0: Use 'setkeycodes e02b <keycode>' to make it known.
+[ 1743.660523] helloworld: loading out-of-tree module taints kernel.
+[ 1743.660527] helloworld: module verification failed: signature and/or required key missing - tainting kernel
+[ 1743.661405] I am in init module...
