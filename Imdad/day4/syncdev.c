@@ -32,7 +32,6 @@ static int sync_open(struct inode *inode, struct file *file)
 {
     try_module_get(THIS_MODULE);
     // Incrments usage count, basically useful if any other device is using the driver, prevent rmmod during use.
-    printk("Open function");
     return 0;
 }
 
@@ -40,7 +39,6 @@ static int sync_release(struct inode *inode, struct file *file)
 {
     module_put(THIS_MODULE);
     // Decrements usage count, allows unloading when no longer in use.
-    printk("Close function");
     return 0;
 }
 
