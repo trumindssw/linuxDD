@@ -1,11 +1,29 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /*
-  Correct r8169 / 8139too source code for Linux 6.6:
-  - Remove incorrect (void*) casts that caused warnings
-  - Ensure time_after64/time_before64 operands are properly cast to u64
-  - Fix pointer/integer comparison errors
-*/
+ * Script Name: ethernet-driver_migrate_5_1_to_6_6.spatch
+ *
+ * Description:
+ *   This Coccinelle semantic patch upgrades generic ethernet
+ *   driver code from Linux kernel version 5.1 to make it
+ *   compatible with Linux kernel 6.6.
+ *
+ * Usage:
+ *   spatch --sp-file ethernet-driver_migrate_5_1_to_6_6.spatch \
+ *          --dir drivers/net
+ *
+ * Prerequisites:
+ *   - Linux kernel source tree (5.1 based code)
+ *   - Coccinelle tool installed
+ *
+ * Install dependencies:
+ *   sudo apt install coccinelle
+ *
+ * Notes:
+ *   - This script is vendor-independent.
+ *   - It applies API and structure changes required for
+ *     kernel 6.6 compatibility.
+ */
 
 /* -------------------------------------------------------
  * Remove header files
