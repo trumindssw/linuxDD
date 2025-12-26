@@ -1,0 +1,479 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
+/*
+ * ath10k wireless driver migration helpers (Linux 5.1 → 6.6)
+ *
+ * SAFE automated fixes only
+ * Manual fixes still required:
+ *   - cfg80211_ops semantic changes
+ *   - peer stats / HTT changes
+ *   - firmware interface changes
+ */
+
+/* =====================================================
+ * 1) Remove deprecated headers
+ * ===================================================== */
+@remove_wireless_h@
+@@
+-#include <linux/wireless.h>
+
+@remove_radiotap@
+@@
+-#include <net/ieee80211_radiotap.h>
+
+@remove_aspm@
+@@
+- #include <linux/pci-aspm.h>
+
+
+/* =====================================================
+ * 1) Fix incorrect (void *) pointer comparisons
+ * ===================================================== */
+@ptr_eq@
+expression a, b;
+@@
+-(void *)(a) == (void *)(b)
++a == b
+
+@ptr_ne@
+expression a, b;
+@@
+-(void *)(a) != (void *)(b)
++a != b
+
+@ptr_gt@
+expression a, b;
+@@
+-(void *)(a) > (void *)(b)
++a > b
+
+@ptr_lt@
+expression a, b;
+@@
+-(void *)(a) < (void *)(b)
++a < b
+
+/* =====================================================
+ * 2) time_after / time_before fixes
+ * ===================================================== */
+@fix_time_after64_left@
+expression X;
+@@
+-time_after64(get_jiffies_64(), X)
++time_after64(get_jiffies_64(), (u64)(X))
+
+@fix_time_after64_right@
+expression X;
+@@
+-time_after64(X, get_jiffies_64())
++time_after64((u64)(X), get_jiffies_64())
+
+@fix_time_before64_left@
+expression X;
+@@
+-time_before64(get_jiffies_64(), X)
++time_before64(get_jiffies_64(), (u64)(X))
+
+@fix_time_before64_right@
+expression X;
+@@
+-time_before64(X, get_jiffies_64())
++time_before64((u64)(X), get_jiffies_64())
+
+/* =====================================================
+ * 3) skb_frag API updates
+ * ===================================================== */
+@skb_frag_size_fix@
+expression frag;
+@@
+-frag->size
++skb_frag_size(frag)
+
+@skb_frag_page_fix@
+expression frag;
+@@
+-frag->page.p
++skb_frag_page(frag)
+
+@skb_frag_offset_fix@
+expression frag;
+@@
+-frag->page_offset
++skb_frag_off(frag)
+
+/* =====================================================
+ * 4) MAC address helpers
+ * ===================================================== */
+@mac_copy_fix@
+expression dev, src;
+@@
+-memcpy(dev->dev_addr, src, dev->addr_len)
++eth_hw_addr_set(dev, src)
+
+/* =====================================================
+ * 5) u64 stats helpers
+ * ===================================================== */
+@stats_fetch_begin@
+expression syncp;
+@@
+-u64_stats_fetch_begin_irq(syncp)
++u64_stats_fetch_begin(syncp)
+
+@stats_fetch_retry@
+expression syncp, start;
+@@
+-u64_stats_fetch_retry_irq(syncp, start)
++u64_stats_fetch_retry(syncp, start)
+
+/* =====================================================
+ * 6) NAPI API update
+ * ===================================================== */
+@napi_add@
+expression dev, napi, poll, weight;
+@@
+-netif_napi_add(dev, napi, poll, weight)
++netif_napi_add_weight(dev, napi, poll, weight)
+
+/* =====================================================
+ * 8) Memory barrier update
+ * ===================================================== */
+@fix_mmiowb@
+@@
+-mmiowb();
++wmb();
+
+/* =====================================================
+ * Fix WRONG skb_frag_size usage on struct firmware
+ * ===================================================== */
+
+@fix_fw_size@
+expression fw;
+@@
+- skb_frag_size(fw)
++ fw->size
+
+
+/* =====================================================
+ * Fix WRONG skb_frag_size usage on struct iwl_hcmd_arr
+ * ===================================================== */
+
+@fix_hcmd_arr_size@
+expression arr;
+@@
+- skb_frag_size(arr)
++ arr->size
+
+
+/* =====================================================
+ * Fix WRONG skb_frag_size usage on struct iwl_dram_data
+ * ===================================================== */
+
+@fix_dram_size@
+expression dram;
+@@
+- skb_frag_size(dram)
++ dram->size
+
+/* =====================================================
+ * Fix assignment cases
+ * ===================================================== */
+
+@fix_assign@
+expression x, y;
+@@
+- skb_frag_size(x) = y
++ x->size = y
+
+/* =====================================================
+ * Fix WRONG skb_frag_size() usage in iwlwifi (Linux 6.6)
+ * ===================================================== */
+
+/* Fix read usage */
+@fix_skb_frag_size_read@
+expression E;
+@@
+- skb_frag_size(E)
++ E->size
+
+
+/* Fix write usage */
+@fix_skb_frag_size_write@
+expression E, V;
+@@
+- skb_frag_size(E) = V
++ E->size = V
+
+@kzfree_to_kvfree@
+expression ptr;
+@@
+- kzfree(ptr);
++ kvfree(ptr);
+
+@he_ampdu_fix@
+@@
+- IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_2
++ IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2
+
+// =====================================================
+// iwlwifi DVM → Linux 6.6 mac80211 migration
+// Fix HT capabilities and SMPS handling
+// =====================================================
+
+// -----------------------------------------------------
+// ieee80211_sta_ht_cap(sta) → &sta->deflink.ht_cap
+// -----------------------------------------------------
+@ht_cap_func@
+expression sta;
+@@
+- ieee80211_sta_ht_cap(sta)
++ (&sta->deflink.ht_cap)
+
+// -----------------------------------------------------
+// ieee80211_sta_get_smps(sta) → sta->deflink.smps_mode
+// -----------------------------------------------------
+@smps_func@
+expression sta;
+@@
+- ieee80211_sta_get_smps(sta)
++ sta->deflink.smps_mode
+
+// -----------------------------------------------------
+// sta->ht_cap → sta->deflink.ht_cap
+// -----------------------------------------------------
+@ht_cap_direct@
+expression sta;
+@@
+- sta->ht_cap
++ sta->deflink.ht_cap
+
+// -----------------------------------------------------
+// sta->smps_mode → sta->deflink.smps_mode
+// -----------------------------------------------------
+@smps_direct@
+expression sta;
+@@
+- sta->smps_mode
++ sta->deflink.smps_mode
+
+// Fix HE MAC/PHY macro typos for Intel iwlwifi
+
+@he_mac_fix1@
+@@
+- IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_2
++ IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2
+
+@he_mac_fix2@
+@@
+- IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU
++ IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU
+
+@he_phy_fix1@
+@@
+- IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_AR
++ IEEE80211_HE_PHY_CAP7_POWER_BOOST_FACTOR_SUPP
+
+@fix_he_phy_cap9@
+identifier id;
+@@
+- IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_MASK
++ IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK
+
+@fix_he_phy_cap9_0us@
+identifier id;
+@@
+- IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_0US
++ IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_0US
+
+@fix_he_phy_cap9_8us@
+identifier id;
+@@
+- IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_8US
++ IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_8US
+
+@fix_he_phy_cap9_16us@
+identifier id;
+@@
+- IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US
++ IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US
+
+@fix_deflink@
+identifier sband, member;
+@@
+- sband->deflink.member
++ sband->member
+
+// =====================================
+// Fix regulatory API rename
+// =====================================
+@regulatory_fix@
+identifier mvm, regd;
+expression retval;
+@@
+- retval = regulatory_set_wiphy_regd_sync_rtnl(mvm->hw->wiphy, regd);
++ retval = regulatory_set_wiphy_regd_sync(mvm->hw->wiphy, regd);
+
+
+// =====================================
+// Fix AMPDU macro (already correct in 6.6)
+// (This rule is OPTIONAL but safe)
+// =====================================
+@ampdu_fix@
+identifier hw;
+@@
+- hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
++ hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
+
+
+// =====================================
+// Fix dma_set_mask(pdev → &pdev->dev)
+// =====================================
+@dma_set_mask_fix@
+identifier pdev;
+expression mask;
+@@
+- dma_set_mask(pdev, mask);
++ dma_set_mask(&pdev->dev, mask);
+
+
+// =====================================
+// Replace removed pci_set_consistent_dma_mask()
+// =====================================
+@dma_coherent_fix@
+identifier pdev;
+expression mask;
+@@
+- pci_set_consistent_dma_mask(pdev, mask);
++ dma_set_coherent_mask(&pdev->dev, mask);
+
+
+// -----------------------------------------------------
+// Remove txrc->rates (API removed in mac80211)
+// -----------------------------------------------------
+@txrc_rates_removed@
+identifier priv, sta, txrc;
+@@
+- rate_control_set_rates(priv->hw, sta, &txrc->rates)
++ rate_control_set_rates(priv->hw, sta)
+
+
+// -----------------------------------------------------
+// IWL_ERR(priv, ...) → dev_err(priv->hw->dev, ...)
+// -----------------------------------------------------
+@iwl_err_to_dev_err@
+identifier priv;
+expression fmt, args;
+@@
+- IWL_ERR(priv, fmt, args)
++ dev_err(priv->trans->dev, fmt, args)
+
+// -----------------------------------------------------
+// priv->hw->dev → priv->trans->dev (iwlwifi DVM)
+// -----------------------------------------------------
+@hw_dev_fix@
+identifier priv;
+expression fmt, args;
+@@
+- dev_err(priv->hw->dev, fmt, args)
++ dev_err(priv->trans->dev, fmt, args)
+
+// -----------------------------------------------------
+// Replace ieee80211_sta_ht_cap usage
+// sta->ht_cap -> sta->deflink.ht_cap
+// -----------------------------------------------------
+@replace_ht_cap@
+identifier sta;
+@@
+- sta->ht_cap
++ sta->deflink.ht_cap
+
+
+// -----------------------------------------------------
+// Replace function calls if needed
+// ieee80211_sta_ht_cap(sta) -> &sta->deflink.ht_cap
+// ieee80211_sta_get_smps(sta) -> sta->deflink.smps_mode
+// -----------------------------------------------------
+@replace_ht_func@
+identifier sta;
+@@
+- ieee80211_sta_ht_cap(sta)
++ (&sta->deflink.ht_cap)
+
+@replace_smps_func@
+identifier sta;
+@@
+- ieee80211_sta_get_smps(sta)
++ sta->deflink.smps_mode
+
+// -----------------------------------------------------
+// Replace smps_mode usage
+// sta->smps_mode -> sta->deflink.smps_mode
+// -----------------------------------------------------
+@replace_smps@
+identifier sta;
+@@
+- sta->smps_mode
++ sta->deflink.smps_mode
+
+
+// ======================================================
+// 3. ieee80211_bss_conf.idle / assoc removal
+//    -> vif->cfg.assoc
+// ======================================================
+@bss_idle_assoc@
+expression vif;
+@@
+- !vif->bss_conf.idle && !vif->bss_conf.assoc
++ vif->cfg.assoc
+
+
+// ======================================================
+// 4. ieee80211_beacon_get() argument reorder
+//    old: (hw, link_id, vif)
+//    new: (hw, vif, link_id)
+// ======================================================
+@beacon_get@
+expression hw, vif;
+@@
+- ieee80211_beacon_get(hw, 0, vif)
++ ieee80211_beacon_get(hw, vif, 0)
+
+// ======================================================
+// 5. iwl_dvm_send_cmd_pdu() argument order fix
+//    old: (priv, id, len, data)
+//    new: (priv, id, flags, len, data)
+// ======================================================
+@dvm_send_cmd@
+expression priv, id, len, data;
+@@
+- iwl_dvm_send_cmd_pdu(priv, id, len, data)
++ iwl_dvm_send_cmd_pdu(priv, id, 0, len, data)
+
+
+
+// SPDX-License-Identifier: GPL-2.0
+// Fix removed he_mu_bss_owner field (Linux 6.6+)
+
+@replace_he_mu_bss_owner@
+expression vif;
+@@
+- vif->bss_conf.he_mu_bss_owner
++ vif->bss_conf.he_mu_beamformer
+
+// ======================================================
+// 7. Replace HE capability structure
+// sta->he_cap -> sta->he
+// he_cap->he.* -> he_cap->*
+// ======================================================
+@replace_he_cap@
+identifier sta, he_cap;
+@@
+- he_cap = &sta->he_cap;
++ he_cap = &sta->he;
+
+@he_cap_ppe@
+identifier he_cap;
+@@
+- he_cap->he.ppe_thres
++ he_cap->ppe_thres
+
+
