@@ -1,0 +1,35 @@
+{
+  "host_access_control": [
+    {
+      "hostname": "sunitha-Latitude-3440",
+      "type": "time",
+      "access": "deny",
+      "time_window": {
+        "start_time": "2025-12-30T12:00:00Z",
+        "stop_time": "2025-12-30T13:00:00Z"
+      }
+    },
+    {
+      "hostname": "keerthana-Latitude-3440",
+      "type": "rate",
+      "access": "allow",
+      "rate_limit": {
+        "unit": "Mbps",
+        "limit": 50
+      }
+    },
+    {
+      "hostname": "prasanthi-Latitude-3440",
+      "type": "siteaccess",
+      "access": "deny",
+      "blocked_sites":
+       [
+        "facebook.com",
+        "youtube.com",
+        "instagram.com"
+      ]
+    }
+  ]
+}
+
+
