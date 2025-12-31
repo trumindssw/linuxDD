@@ -1,0 +1,164 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
+/*
+ * Script Name: ethernet-driver_migrate_5_1_to_6_6.spatch
+ *
+ * Description:
+ *   This Coccinelle semantic patch upgrades generic ethernet
+ *   driver code from Linux kernel version 5.1 to make it
+ *   compatible with Linux kernel 6.6.
+ *
+ * Usage:
+ *   spatch --sp-file ethernet-driver_migrate_5_1_to_6_6.spatch \
+ *          --dir drivers/net
+ *
+ * Prerequisites:
+ *   - Linux kernel source tree (5.1 based code)
+ *   - Coccinelle tool installed
+ *
+ * Install dependencies:
+ *   sudo apt install coccinelle
+ *
+ * Notes:
+ *   - This script is vendor-independent.
+ *   - It applies API and structure changes required for
+ *     kernel 6.6 compatibility.
+ */
+
+/* -------------------------------------------------------
+ * Remove header files
+ * ------------------------------------------------------- */
+@remove_aspm_header@
+@@
+-#include <linux/pci-aspm.h>
+
+
+@replace_macro@
+@@
+-PHY_IGNORE_INTERRUPT
++PHY_MAC_INTERRUPT
+
+/* -------------------------------------------------------
+ * 1) Revert all incorrect (void*) equality/inequality casts
+ * ------------------------------------------------------- */
+@ revert_eq @
+expression a, b;
+@@
+- (void *)(a) == (void *)(b)
++ a == b
+
+@ revert_ne @
+expression a, b;
+@@
+- (void *)(a) != (void *)(b)
++ a != b
+
+/* -------------------------------------------------------
+ * 2) Revert ordering (void*) casts
+ * ------------------------------------------------------- */
+@ revert_gt @
+expression a, b;
+@@
+- (void *)(a) > (void *)(b)
++ a > b
+
+@ revert_lt @
+expression a, b;
+@@
+- (void *)(a) < (void *)(b)
++ a < b
+
+@ revert_ge @
+expression a, b;
+@@
+- (void *)(a) >= (void *)(b)
++ a >= b
+
+@ revert_le @
+expression a, b;
+@@
+- (void *)(a) <= (void *)(b)
++ a <= b
+
+/* -------------------------------------------------------
+ * 3) Fix time_after64 / time_before64 usages
+ * ------------------------------------------------------- */
+/* a) Left operand non-u64 -> cast to u64 */
+@ fix_ta_left @
+expression X;
+@@
+- time_after64(get_jiffies_64(), X)
++ time_after64(get_jiffies_64(), (u64)(X))
+
+@ fix_ta_right @
+expression X;
+@@
+- time_after64(X, get_jiffies_64())
++ time_after64((u64)(X), get_jiffies_64())
+
+@ fix_tb_left @
+expression X;
+@@
+- time_before64(get_jiffies_64(), X)
++ time_before64(get_jiffies_64(), (u64)(X))
+
+@ fix_tb_right @
+expression X;
+@@
+- time_before64(X, get_jiffies_64())
++ time_before64((u64)(X), get_jiffies_64())
+
+/* -------------------------------------------------------
+ * 4) Optional: fix time_after / time_before (non-64) for completeness
+ * ------------------------------------------------------- */
+@ fix_ta32_left @
+expression a, b;
+@@
+- time_after(a, b)
++ time_after((unsigned long)(a), (unsigned long)(b))
+
+@ fix_tb32_left @
+expression a, b;
+@@
+- time_before(a, b)
++ time_before((unsigned long)(a), (unsigned long)(b))
+
+@ hw_address_copy @
+identifier dev, addr;
+expression len;
+@@
+-memcpy(dev->dev_addr, addr->sa_data, len)
++eth_hw_addr_set(dev, addr->sa_data)
+
+@ stats_fetch_begin @
+identifier tp, rx_stats, syncp;
+@@
+-u64_stats_fetch_begin_irq(&tp->rx_stats.syncp)
++u64_stats_fetch_begin(&tp->rx_stats.syncp)
+
+@ stats_fetch_retry @
+identifier tp, rx_stats, syncp;
+expression start;
+@@
+-u64_stats_fetch_retry_irq(&tp->rx_stats.syncp, start)
++u64_stats_fetch_retry(&tp->rx_stats.syncp, start)
+
+@napi_add@
+expression dev, napi, poll, weight;
+@@
+-netif_napi_add(dev, napi, poll, weight)
++netif_napi_add_weight(dev, napi, poll, weight)
+
+@dma_mask@
+expression dev, mask;
+@@
+-pci_set_dma_mask(dev, mask)
++dma_set_mask(dev, mask)
+
+/* =====================================================
+ * 7) Barrier fix: mmiowb() → wmb()
+ * ===================================================== */
+@fix_mmiowb@
+@@
+-mmiowb();
++wmb();
