@@ -1,1 +1,2 @@
-Please, use your own path while using the symvers of add module.
+Device Driver code whihch uses semaphores and mutex for handling shared memory locations.
+
