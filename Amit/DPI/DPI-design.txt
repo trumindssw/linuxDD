@@ -1,0 +1,43 @@
+XDP based DPI implementation and used userspace to parse initial TLS packet to get SNI
+configure XDP with ip address of blacklisted domain got in SNI.
+XDP looks into packet with blacklisted ip address and drop packets
+
+###TCP based TLS
+XDP check for dest ip in packet.
+	if dest-ip is in blacklist map then DROP packet.
+	if dest-ip is in whitelist map then PASS packets.
+	if dest-ip is in grey-list then 
+		mark that packet to send that packet to netfilter queue for dpi hook
+	if dest-ip is neither in blacklist or whitelist or grey-list then
+		check TCP dest-port 443 
+			if yes then
+				if it is not TCP SYN then
+					PASS the packet
+				if TCP SYN packet
+					put that dest-ip in grey-list map
+					mark that packet to send that packet to netfilter queue for dpi hook
+
+###UDP based TLS that is QUIC
+XDP check for dest ip in packet.
+	if dest-ip is in blacklist map then DROP packet.
+	if dest-ip is in whitelist map then PASS packets.
+	if dest-ip is in grey-list then 
+		mark that packet to send that packet to netfilter queue for dpi hook
+	if dest-ip is neither in blacklist or whitelist or grey-list then
+		check UDP dest-port 443 
+			if yes then
+				if check LONG HEADER BIT is set and QUIC packe type is 0 (means initial)
+					put that dest-ip in grey-list map
+					mark that packet to send that packet to netfilter queue for dpi hook
+
+
+###netfilter dpi hook in user space:
+in case of TCP packet:
+	parse TLS and ClientHello packet then
+		parse and check for SNI,
+		in case of black-listed SNI, configure dest-ip to blacklist map of XDP
+
+in case of UDP packet:
+	use picoquic library to decrypt QUIC initial packt and get SNI
+	n case of black-listed SNI, configure dest-ip to blacklist map of XDP
+
