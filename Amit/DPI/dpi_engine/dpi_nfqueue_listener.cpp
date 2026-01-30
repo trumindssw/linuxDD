@@ -18,6 +18,15 @@
 #define XDP_TRIE_MAP_PATH "/sys/fs/bpf/flow_trie_map"
 #define XDP_HASH_MAP_PATH "/sys/fs/bpf/dpi_map"
 
+
+struct FlowKey {
+    uint32_t ip1;
+    uint32_t ip2;
+    uint16_t port1;
+    uint16_t port2;
+    uint8_t  protocol;
+};
+
 class Packet {
 	private:
 		unsigned int pkt_len;
@@ -27,26 +36,38 @@ class Packet {
 		unsigned char ipv4;
 		unsigned char ipv6;
 		unsigned int pkt_id;
+		unsigned int s_ip;
+		unsigned int d_ip;
 	public:
 		explicit Packet(struct nfq_q_handle *qh, struct nfq_data *nf_data, void *nf_listener);
 		virtual ~Packet();
 		virtual int parse(struct nfq_q_handle *qh, struct nfq_data *nf_d) = 0;
 		virtual char match_sni(char *) = 0;
-		int update_xdp_map();
 		int verdict(int verdict);
 		void *packet_start();
 		void *l4_header_start();
 		int ip_length();
 		int ip_header_length();
+		unsigned int source_ip() {
+			return s_ip;
+		}
+		unsigned int dest_ip() {
+			return d_ip;
+		}
 };
 
 Packet::Packet(struct nfq_q_handle *qh, struct nfq_data *nf_data, void *nf_listener) {
 	struct nfqnl_msg_packet_hdr *ph;
+	struct iphdr *ip_hdr;
 	payload_len = nfq_get_payload(nf_data, &payload);
 
+	ip_hdr = (struct *iphdr)
 	ph = nfq_get_msg_packet_hdr(nf_data);
 	if (ph)
 		pkt_id = ntohl(ph->packet_id);
+
+	s_ip = ip_hdr->addrs.saddr;
+	d_ip = ip_hdr->addrs.daddr;
 
 	printf("Received packet of length = %d bytes\n", payload_len);
 }
@@ -75,15 +96,15 @@ void *Packet::l4_header_start() {
 
 int Packet::is_valid() {
 	int ip_version;
-	struct iph *ip_hdr;
+	struct iphdr *ip_hdr;
 
 
-	if (payload_len < sizeof(struct ip))
+	if (payload_len < sizeof(struct iphdr))
 		return 0;
 	ip_version = payload[0] >> 4;
 	if (ip_version != 4)
 		return 0;
-	ip_hdr = (struct *iph)payload;
+	ip_hdr = (struct *iphdr)payload;
 	if (ip_hdr->protocol == 6)
 		is_tcp = 1;
 	else if (ip_hdr->protocol == 20)
@@ -104,24 +125,49 @@ int Packet::is_udp() {
 	return is_udp;
 }
 
-
+/*
 class PacketUDP: public Packet {
 	public:
 		explicit PacketUDP(struct nfq_q_handle *qh, struct nfq_data *nf_d);
 		int parse();
 		char match_sni(char *);
 };
+*/
 
 class PacketTCP: public Packet {
 	private:
-		struct tcphdr tcp;
+		struct tcphdr *tcp;
 		int tls_application;
 		int l4_header_length();
 	public:
 		explicit PacketTCP(struct nfq_q_handle *qh, struct nfq_data *nf_d);
 		int parse();
 		char match_sni(char *);
+		unsigned short source_port() {
+			return tcp->source;
+		}
+		unsigned short dest_port() {
+			return tcp->dest;
+		}
 };
+
+PacketTCP::PacketTCP(struct nfq_q_handle *qh, struct nfq_data *nf_d)
+{
+	tcp = (struct *tcphdr)l4_header_start();
+}
+
+FlowKey PacketTCP::make_flow_key() const {
+    FlowKey key;
+
+    key.ip1   = source_ip();
+    key.ip2   = dest_ip();
+    key.port1 = source_port();
+    key.port2 = dest_port();
+    key.proto = 6;
+
+    return key;
+}
+
 
 int PacketTCP::l4_header_length() {
 	return tcp->doff * 8;
@@ -155,27 +201,6 @@ int PacketTCP::parse() {
 
 
 
-
-struct FlowKey {
-    uint32_t src_ip;
-    uint32_t dst_ip;
-    uint16_t src_port;
-    uint16_t dst_port;
-    uint8_t  protocol;
-
-    bool operator<(const FlowKey& o) const {
-        return std::tie(protocol,
-                        src_ip,
-                        dst_ip,
-                        src_port,
-                        dst_port)
-             < std::tie(o.protocol,
-                        o.src_ip,
-                        o.dst_ip,
-                        o.src_port,
-                        o.dst_port);
-    }
-};
 
 
 class Flow {
@@ -310,7 +335,11 @@ class FlowManager{
 
 class FlowManager {
 public:
-	Flow* create_flow(const FlowKey& key, uint64_t ts);
+	static FlowManager& instance() {
+        	static FlowManager instance;
+        	return instance;
+    	}
+	Flow* get_create_flow(const FlowKey& key, uint64_t ts);
 	void expire(uint64_t now_ns);
 
 private:
@@ -324,18 +353,16 @@ FlowManager::FlowManager() {
 	xdp_trie_map_fd = bpf_obj_get(XDP_TRIE_MAP_PATH);
 	xdp_hash_map_fd = bpf_obj_get(XDP_HASH_MAP_PATH);
 
-	if (xdp_trie_map_fd < 0 || xdp_hash_map_fd < 0)
-		exit();
+	//if (xdp_trie_map_fd < 0 || xdp_hash_map_fd < 0)
+	//TODO implementation exit progrma if xdp map not found 	
 
 }
 
 int FlowManager::update_xdp_map(unsigned int dest_ip) {
-	private:
-		std::map<Flow> flow_map;
-
+      //TODO call bpf_obj_update_elem()
 }
 
-Flow* FlowManager::create_flow(const FlowKey& key, uint64_t ts)
+Flow* FlowManager::get_create_flow(const FlowKey& key, uint64_ta ts)
 {
 
     auto it = flows_.find(key);
@@ -350,7 +377,7 @@ Flow* FlowManager::create_flow(const FlowKey& key, uint64_t ts)
         flow = std::make_unique<FlowUDP>(key);
 
     Flow* ret = flow.get();
-    flows_.emplace(key, std::move(flow));
+    flows_.insert(std::make_pair(key, std::move(flow)));
     return ret;
 }
 
@@ -377,6 +404,7 @@ class dpi_nfqueue_listener{
 		int fd;
 		struct nfq_handle *queue;
 		struct nfq_q_handle *queue_handle;
+		FlowManager& flow_m;
 
 	public:
 		explicit dpi_nfqueue_listener(unsigned long q_num);
@@ -389,7 +417,7 @@ class dpi_nfqueue_listener{
 			unsigned char *payload = NULL;
 			int payload_len;
 			struct nfqnl_msg_packet_hdr *qh;
-			FLowManager flow_m;
+			FlowManager *flow_hdlr;
 
 			payload_len = nfq_get_payload(nf_d, &payload);
 			qh = nfq_get_msg_packet_hdr(nf_d);
@@ -397,6 +425,8 @@ class dpi_nfqueue_listener{
 				iph = (struct *iphdr)payload;
 				std::unique_ptr<Packet> pkt = handle_packet(qh, nf_d, payload, nf_listener);
 				pkt->parse();
+				flow_hdlr = (FlowManager *)nf_listener;
+				flow_hdlr->get_create_flow(pkt->make_flow_key());
 			}
 
 			return nfq_set_verdict(qh, 0, NF_ACCEPT, 0, NULL);
@@ -409,6 +439,7 @@ dpi_nfqueue_listener::dpi_nfqueue_listener(unsigned long qnum) {
 
 int dpi_nfqueue_listener::init() {
 	int ret;
+	flow_m = FlowManager::instance();
 
 	queue = nfq_open();
 	if (!queue) {
@@ -421,7 +452,7 @@ int dpi_nfqueue_listener::init() {
 	if (ret < -1)
 		return false;
 
-	queue_handle = nfq_create_queue(queue, queue_number, &dpi_nfqueue_listener::callback, this);
+	queue_handle = nfq_create_queue(queue, queue_number, &dpi_nfqueue_listener::callback, flow_m);
 	if (!queue_handle) {
 		return false;
 	}
