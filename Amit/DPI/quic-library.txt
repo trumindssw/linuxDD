@@ -1,0 +1,14 @@
+git clone https://github.com/private-octopus/picoquic.git
+
+git submodule update --init --recursive
+
+mkdir build
+cd build
+
+cmake -DPICOQUIC_FETCH_PTLS=ON -DPICOQUIC_FETCH_C4=ON ..
+
+make -j$(nproc)
+
+
+
+

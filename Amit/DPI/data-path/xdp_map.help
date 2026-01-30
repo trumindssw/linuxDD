@@ -1,0 +1,15 @@
+sudo bpftool map show
+
+sudo bpftool map show id <map-id> -p
+
+sudo bpftool map pin id <MAP_ID> /sys/fs/bpf/<map-name>
+
+sudo bpftool map show pinned /sys/fs/bpf/<map-name>
+
+sudo cat /sys/fs/bpf/<map-name>
+
+sudo bpftool map dump pinned /sys/fs/bpf/<map-name>
+
+sudo cat /sys/kernel/debug/tracing/trace_pipe
+
+

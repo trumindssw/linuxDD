@@ -1,0 +1,217 @@
+#include "vmlinux.h"
+#include "bpf/bpf_helpers.h"
+#include "bpf/bpf_endian.h"
+
+#define ETH_P_IPV6 0x86dd
+#define ETH_P_IPV4 0x0800
+#define ETH_P_VLAN 0x8100
+
+
+#define HOST_LEN 64
+#define MAX_ENTRIES 4096
+
+struct lpm_key {
+	__u32 prefixlen; //length in bits
+	char domain[HOST_LEN]; //domain in reverse
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_LPM_TRIE);
+    __uint(max_entries, MAX_ENTRIES);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+    __type(key, struct lpm_key);
+    __type(value, __u8);
+} domain_map SEC(".maps");
+
+struct flow_key {
+    __u32 src_ip;
+    __u32 dest_ip;
+    __u16 src_port;
+    __u16 dest_port;
+    __u8  proto;
+}__attribute__((packed));
+
+struct flow_value {
+    __u32 last_seen;
+    __u32 initial_seq;
+    __u16 total_seg_len;
+    __u16 expected_len;
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __uint(max_entries, 4096);
+    __uint(map_flags, BPF_F_NO_COMMON_LRU);
+    __type(key, struct flow_key);
+    __type(value, struct flow_value);
+} flow_map SEC(".maps");
+
+/*
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, __u32);
+} xdp_cfg SEC(".maps");
+*/
+
+struct tls_record_hdr {
+    __u8  content_type;   // 0x16 = handshake
+    __u16 version;        // 0x0301, 0x0303, etc
+    __u16 length;         // payload length
+};
+
+
+enum xdp_action xdp_dpi_udp_flow( struct iphdr *ip, struct udphdr *tcp) {
+	return XDP_PASS;
+}
+
+enum xdp_action xdp_dpi_tcp_flow( struct iphdr *ip, struct tcphdr *tcp) {
+	struct flow_key flow_k = {0};
+	struct flow_value flow_val = {0};
+	__u16 tcp_h_len = tcp->doff * 4;
+
+	flow_k.src_ip = ip->addrs.saddr;
+	flow_k.dest_ip = ip->addrs.daddr;
+	flow_k.proto = ip->protocol;
+	flow_k.src_port = tcp->source;
+	flow_k.dest_port = tcp->dest;
+
+	if (tcp->doff < 5)
+		return XDP_DROP;
+	if ((tcp->fin & 1) || (tcp->rst & 1)) {
+		bpf_map_delete_elem(&flow_map, &flow_k);
+		return XDP_PASS;
+	}
+
+	if (tcp->syn & 1) {
+		if (bpf_map_lookup_elem(&flow_map, &flow_k) == NULL) {
+			flow_val.last_seen = bpf_ktime_get_ns();
+			flow_val.initial_seq = tcp->seq;
+			bpf_map_update_elem(&flow_map, &flow_k, &flow_val, BPF_ANY);
+		}
+		return XDP_PASS;
+	}
+	payload = ip->tot_len - (sizeof(struct iphdr) + tcp_h_len);
+	if (payload == 0) 
+		return XDP_PASS;
+	flow_val = bpf_map_lookup_elem(&flow_map, &flow_k);
+	if (flow_val == NULL)
+		return XDP_PASS;
+
+	/*
+	if (tcp->psh & 1) {
+		flow_val = bpf_map_lookup_elem(&flow_map, &flow_k);
+		if (flow_val == NULL)
+			return XDP_PASS;
+		payload = ip->tot_len - (sizeof(struct iphdr) + tcp_h_len);
+		seg_seq = (tcp->seq - flow_val->initial_seq);
+		if ((seg_seq  == 1) || ((flow_val.seg_len + payload) == (seg_seq + payload - 1))) {
+			//mark the packet for sending to netfilter queue 100
+			bpf_map_delete_elem(&flow_map, &flow_k);
+
+		} else {
+			flow_val.total_seg_len += payload;
+			flow_val.expected_len = seg_seq + payload - 1;
+			flow_val.last_seen = bpf_ktime_get_ns();
+			bpf_map_update_elem(&flow_map, &flow_k, &flow_val, BPF_ANY);
+		}
+		return XDP_PASS;
+	}
+	if (tcp-ack & 1) {
+		flow_val = bpf_map_lookup_elem(&flow_map, &flow_k);
+		if (flow_val == NULL)
+			return XDP_PASS;
+		payload = ip->tot_len - (sizeof(struct iphdr) + tcp_h_len);
+		if (payload == 0) 
+			return XDP_PASS;
+		seg_seq = tcp->seq - flow_val->initial_seq;
+		if (flow_val->expected_len == 0) {
+			flow_val.total_seg_len += payload;
+			flow_val.expected_len = 0;
+			flow_val.last_seen = bpf_ktime_get_ns();
+			bpf_map_update_elem(&flow_map, &flow_k, &flow_val, BPF_ANY);
+		}
+
+	}
+	*/
+	return XDP_PASS;
+}
+
+SEC("xdp_dpi")
+int xdp_dpi_prog(struct xdp_md *ctx)
+{
+	void *data_end = (void *)(long)ctx->data_end;
+	void *data = (void *)(long)ctx->data;
+	struct ethhdr *eth = data;
+//	struct lpm_key key;
+//	__u8 *v = NULL;
+	__u16 eth_proto;
+	struct iphdr *ip = NULL;
+	struct tcphdr *tcp = NULL;
+	struct udphdr *udp = NULL;
+//	struct tls_record_hdr *tls_hdr;
+	enum xdp_action action = XDP_PASS;
+
+	/* Bounds check BEFORE dereference */
+	if (data + sizeof(struct ethhdr) + 52  > data_end)
+		return XDP_PASS;
+
+	eth_proto = bpf_ntohs(eth->h_proto);
+	if (eth_proto == ETH_P_IPV6)
+	{
+		bpf_printk("no action on packet if proto is  0x86dd\n");
+		return XDP_PASS;
+	}
+	if (eth_proto == ETH_P_VLAN) {
+		data = data + sizeof(struct ethhdr) + 4;
+	}
+	if (eth_proto == ETH_P_IPV4) {
+		data = data + sizeof(struct ethhdr);
+	}
+	else
+		return XDP_PASS;
+
+	ip = (struct iphdr *)data;
+	__u16 ip_len = bpf_ntohs(ip->tot_len);
+
+	if ((void *)ip + (ip_len - 1) > data_end)
+		return XDP_PASS;
+	if (ip->protocol != 0x06 && ip->protocol != 0x14)
+		return XDP_PASS;
+	//fragmented packet handling to be done later
+
+	
+	if (ip->protocol == 0x06) {
+		tcp = (struct tcphdr *)(ip + 1);
+		if (bpf_ntohs(tcp->dest) != 443)
+			return XDP_PASS;
+		action = xdp_dpi_tcp_flow(ip, tcp);
+		return action;
+	}
+	if (ip->protocol == 0x14) {
+		udp = (struct udphdr *)(ip + 1);
+		if (bpf_ntohs(udp->dest) != 443)
+			return XDP_PASS;
+		action = xdp_dpi_udp_flow(ip, udp);
+		return action;
+	}
+/*
+	__u32 tcp_h_len = tcp->doff * 4;
+	void *payload = (void *)tcp + tcp_h_len;
+	if (payload + sizeof(struct tls_record_hdr) > data_end)
+		return XDP_PASS;
+	
+	tls_hdr = (struct tls_record_hdr *)payload;
+	if (tls_hdr->content_type != 0x16)
+		return XDP_PASS;
+
+	bpf_printk("ClientHello packet received\n");
+	v = bpf_map_lookup_elem(&domain_map, &key);
+	if (!v)
+ 	 	return XDP_PASS;
+*/
+	return XDP_PASS;
+
+}
+char _license[] SEC("license") = "GPL";
