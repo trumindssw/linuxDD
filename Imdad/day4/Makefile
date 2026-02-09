@@ -1,9 +1,6 @@
-obj-m += avg.o
-
-KBUILD_EXTRA_SYMBOLS := /home/imdad/Desktop/day1/add/Module.symvers
+obj-m += syncdev.o
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
-
 PWD := $(shell pwd)
 
 all:
