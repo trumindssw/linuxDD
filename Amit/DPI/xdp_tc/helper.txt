@@ -1,0 +1,3 @@
+sudo tc qdisc add dev enp2s0 clsact
+
+sudo tc filter add dev enp2s0 ingress bpf da obj tc_xdp_mark_classifier.o sec classifier

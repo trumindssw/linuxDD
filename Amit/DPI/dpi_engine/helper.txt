@@ -1,0 +1,2 @@
+sudo apt install libnetfilter-queue-dev
+sudo apt install libbpf-dev
