@@ -1,108 +1,237 @@
-# XDP Packet Anomaly Detection (e1000e – Generic Mode)
+# XDP Packet Anomaly Detection Firewall
 
-## Task
-
-Use **XDP (Express Data Path)** in the Ethernet driver to detect packet anomalies such as:
-
-* Invalid Ethertype
-* Invalid IP header length
-* UDP length mismatch
-* Zero port
-* TCP SYN + FIN in same packet
-* SYN Flood attack
-
-Since the Intel **e1000e** driver does not support native XDP, the program runs in **XDP generic mode**.
+*(e1000e – Generic XDP Mode)*
 
 ---
 
-## Files in This Project
+## Objective
 
-### 1. `xdp_filter.c`
+Implement a configurable packet-filtering firewall using **XDP (eBPF)** in the Linux networking receive path to detect and block malformed or suspicious packets.
 
-XDP program written in C.
+The program runs on an Intel NIC using the **e1000e driver**, which supports only **XDP Generic Mode**.
+
+The firewall performs early packet inspection and drops malicious packets before they reach the Linux TCP/IP stack.
+
+---
+
+## Features
+
+The XDP program detects and blocks the following anomalies:
+
+| Rule ID | Detection                              |
+| ------- | -------------------------------------- |
+| 0       | Invalid Ethertype                      |
+| 1       | Invalid IPv4 Header Length             |
+| 2       | UDP Length Mismatch                    |
+| 3       | UDP Zero Port                          |
+| 4       | TCP SYN + FIN flags together           |
+| 5       | SYN Flood (rate-limited per source IP) |
+
+Additional capability:
+
+Runtime enabling/disabling of rules **without detaching or recompiling XDP**.
+
+---
+
+## Project Files
+
+### `xdp_filter.c`
+
+Kernel eBPF/XDP program.
 
 Implements:
 
-* Packet parsing (Ethernet, IPv4, TCP, UDP)
+* Ethernet, IPv4, TCP, UDP parsing
 * Anomaly detection rules
-* Drop counters using BPF maps
-* SYN flood detection using hash map
+* Per-CPU drop counters
+* SYN flood protection using time window hash table
+* Runtime configurable rules via BPF map (`rule_config`)
 
 ---
 
-### 2. `Makefile`
+### `Makefile`
 
-Used to compile the XDP program using clang with BPF target.
+Compiles the XDP program using clang BPF target.
 
-Build command:
+Build:
 
-```bash
+```
 make
 ```
 
 ---
 
-### 3. `malformed_test.py`
+### `malformed_test.py`
 
-Python script (Scapy-based) used from Windows machine to generate:
+Scapy based packet generator.
 
-* ICMP packets
+Sends:
+
+* ICMP packets (valid traffic)
+* Invalid IP header length
 * SYN + FIN packets
-* Zero port packets
+* UDP zero port packets
 * UDP length mismatch packets
-* Invalid Ethertype packets
-* SYN flood packets
+* Invalid ethertype frames
+* SYN flood attack scenarios
+
+Used to validate firewall behavior.
 
 ---
 
-## Setup Used
+### `rule_control.py`
 
-### Linux Machine
+Interactive firewall controller (userspace CLI).
 
-* Intel NIC using `e1000e` driver
-* XDP attached in generic mode
-* Manual IPv4 configuration (direct Ethernet cable setup)
-* Tools used:
+Allows:
 
-  * clang
-  * libbpf-dev
-  * bpftool
-  * tcpdump
+* Enable/disable individual rules
+* Enable all rules
+* Disable all rules
+* Load default policy
+* View active rule status
+
+This program modifies BPF maps using `bpftool` → updates kernel behavior in real time.
+
+No XDP reload required.
+
+---
+
+## System Setup
+
+### Receiver Machine (Linux – Firewall Host)
+
+Network:
+Direct Ethernet connection
+
+Driver:
+
+```
+e1000e (Generic XDP mode)
+```
+
+Tools:
+
+* clang
+* libbpf-dev
+* bpftool
+* tcpdump
+* python3
+
+Assign IP:
+
+```
+sudo ip addr flush dev enp0s31f6
+sudo ip addr add 169.254.154.200/16 dev enp0s31f6
+sudo ip link set enp0s31f6 up
+```
 
 Attach XDP:
 
-```bash
+```
 sudo ip link set dev enp0s31f6 xdp obj xdp_filter.o sec xdp
 ```
 
-Check counters:
+Check maps:
 
-```bash
+```
+sudo bpftool map show
 sudo bpftool map dump name dropcnt
 ```
 
 ---
 
-### Windows Machine
+### Sender Machine (Linux – Traffic Generator)
 
-* Connected via direct Ethernet cable
-* Python + Scapy
-* Npcap installed
-* Used to generate malformed packets and SYN flood
+Requirements:
 
----
+```
+sudo apt install python3-scapy
+```
 
-## What Was Verified
+Run packet generator:
 
-* RX packets increase at driver level
-* XDP drop counters increase
-* Packets are dropped before reaching TCP/IP stack
-* SYN flood detection works after threshold is exceeded
+```
+sudo python3 malformed_test.py
+```
 
 ---
 
-## Notes
+## Firewall Runtime Control
 
-* e1000e supports only generic XDP
-* Drop happens after skb allocation
-* Driver RX dropped stats do not increase for XDP_DROP
+Start rule controller:
+
+```
+sudo python3 rule_control.py
+```
+
+Example menu:
+
+```
+0 - Invalid Ethertype [Enabled]
+1 - Invalid IP Header Length [Enabled]
+2 - UDP Length Mismatch [Enabled]
+3 - UDP Zero Port [Enabled]
+4 - TCP SYN+FIN [Enabled]
+5 - SYN Flood [Enabled]
+
+e - Enable all rules
+d - Disable all rules
+l - Load default policy
+q - Quit
+```
+
+Changes apply instantly to kernel XDP program.
+
+---
+
+## Verification
+
+Monitor drop counters live:
+
+```
+watch -n1 sudo bpftool map dump name dropcnt
+```
+
+Observe:
+
+* Valid packets → PASS
+* Malformed packets → DROP
+* SYN flood → dropped after threshold exceeded
+
+Packets are filtered **before reaching TCP/IP stack**.
+
+---
+
+## Important Observations
+
+* e1000e supports only XDP generic mode
+* XDP runs after driver RX but before networking stack
+* Drop counters stored in per-CPU BPF maps
+* Driver RX drop statistics do NOT increase for XDP drops
+* Firewall rules can be changed dynamically without reloading program
+
+---
+
+## Packet Flow
+
+```
+Sender → NIC → Driver → XDP → (DROP / PASS) → Kernel Stack
+```
+
+If dropped:
+Packet never reaches socket layer.
+
+---
+
+## Outcome
+
+A runtime-configurable Layer-2 firewall built using eBPF/XDP that:
+
+* Detects malformed packets
+* Mitigates SYN flood attacks
+* Operates at early receive path
+* Allows live rule configuration
+* Requires no service restart
+
+---
