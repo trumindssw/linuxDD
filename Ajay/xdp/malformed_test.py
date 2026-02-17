@@ -1,9 +1,9 @@
 from scapy.all import *
 import time
 
-TARGET_IP = "169.254.154.200"   # Linux machine running XDP
-DEST_MAC = "b4:45:06:04:6c:a4"  # Linux NIC MAC address
-INTERFACE = "Ethernet"         # Windows network interface
+TARGET_IP = "169.254.154.200"   # Ethernet Interface's IP of XDP running linux machine
+DEST_MAC = "b4:45:06:04:6c:a4"  # Linux NIC MAC address (running XDP)
+INTERFACE = "enp3s0"         # Ethernet interface name of sender
 
 
 # ---------------- Basic Rule Tests ----------------
@@ -12,6 +12,17 @@ INTERFACE = "Ethernet"         # Windows network interface
 print("[*] Sending ICMP packets...")
 pkt0 = Ether(dst=DEST_MAC)/IP(dst=TARGET_IP)/ICMP()
 sendp(pkt0, iface=INTERFACE, count=10, verbose=False)
+
+# Invalid IP header length (should DROP)
+print("[*] Sending Invalid IP Header Length packets...")
+pkt_iphl = Ether(dst=DEST_MAC)/IP(dst=TARGET_IP)/TCP(dport=80)
+
+# Force invalid IHL (<5)
+pkt_iphl[IP].ihl = 4
+del pkt_iphl[IP].len
+del pkt_iphl[IP].chksum
+
+sendp(pkt_iphl, iface=INTERFACE, count=10, verbose=False)
 
 # SYN+FIN test (should DROP)
 print("[*] Sending SYN+FIN packets...")
